@@ -25,6 +25,7 @@
 - [c. Membuat File Baru dan Memecah File menjadi Beberapa Bagian](#c-membuat-file-baru-dan-memecah-file-menjadi-beberapa-bagian)
 - [d. Menghapus File akan Menghapus Pecahannya di Relics](#d-menghapus-file-akan-menghapus-pecahannya-di-relics)
 - [e. Pencacatan Log Aktivitas](#e-pencatatan-log-aktivitas)
+- [f. Tambahan Penjelasan Main Function](f-tambahan-penjelasan-main-function)
   
 
  
@@ -194,7 +195,7 @@ static int fs_read(const char *jalur, char *buf, size_t size, off_t offset, stru
      - `offset` dan `size` akan menangani pembacaaan untuk menghitung bagian mana dari setiap pecahan yang perlu dibaca berdasarkan posisi awal dan jumlah byte yang diminta.
      - Data yang telah dibaca akan disalin dlam buffer `buf` oleh FUSE.
 - Operasi "tampil" dan "salin" diimplementasikan melalui fungsi `fs_read`. ketika terdapat command seperti `cat` atau `cp`, maka FUSE akan memanggil `fs_read` untuk mendapatkan data file.
--  
+
 
 ## c. Membuat File Baru dan Memecah File menjadi Beberapa Bagian
 
@@ -317,6 +318,18 @@ static int fs_release(const char *jalur, struct fuse_file_info *fi) {
 }
 ```
 
+- `fs_create` digunakan untuk membuat  sebuah file baru. 
+  - Membuat file sementara di `/tmp/` dengan nama yang sama dengan file yang dibuat di     direktori mount. Tujuannya adalah untuk menampung data yang ditulis sebelum dipecah.
+  - `catat_log("CREATE: %s", nama_file);` Mencatat pembuatan file ke log.
+- `fs_write` digunakan ketika data ditulis ke file yang sudah dibuka.
+  - Menulis data ke file sementara di `/tmp/`. Jika offset lebih besar dari 0, maka akan membuka file dalam mode r+ agar data yang ditulis tidak menimpa data yang sudah ada.
+  - `catat_log("WRITE: %s (%zu bytes pada offset %lld)", nama_file, written, (long long)offset);`: Mencatat operasi penulisan ke log.
+- `fs_release` digunakan ketika file ditutup. Logika pemecahan file diterapkan pada fungsi ini
+  - Membaca data dari file sementara di `/tmp/`.
+  - Memecah data yang dibaca menjadi potongan-potongan berukuran `UKURAN_PECAHAN` (1KB) dan menulis setiap potongan ke file terpisah di direktori "relics". Penamaan file pecahan adalah "`[namafile].000`", "`[namafile].001`", dst.
+  - Menghapus file sementara di `/tmp/` setelah selesai.
+  - `catat_log("RELEASE: %s -> %s.000 - %s.%03d", nama_file, nama_file, nama_file, idx - 1);` akan mencatat operasi pelepasan (yang mencakup pemecahan dan penyimpanan) ke log.
+
 ## d. Menghapus File akan Menghapus Pecahannya di Relics
 
 ```
@@ -351,6 +364,12 @@ static int fs_unlink(const char *jalur) {
 }
 ```
 
+- fs_unlink digunakan untuk menghapus sebuah file.
+  -Kode ini menghapus semua pecahan file yang sesuai di direktori "relics". Loop for digunakan untuk mengiterasi hingga 1000, mencoba menghapus setiap kemungkinan pecahan file ([namafile].000, [namafile].001, dst.).
+  - `access(path_pecahan, F_OK) == 0` akan memeriksa apakah file pecahan ada sebelum mencoba menghapusnya.
+  - `remove(path_pecahan) == 0` akan menghapus file pecahan. Jika penghapusan gagal, pesan error dicatat.
+  - `catat_log("DELETE: %s.000 - %s.%03d", nama_file, nama_file, sukses - 1);` digunakan dalam pencatatan aktivitas penghapusan ke log, termasuk rentang pecahan file yang dihapus.
+
 ## e. Pencatatan Log Aktivitas
 
 ```
@@ -374,6 +393,63 @@ void catat_log(const char *format, ...) {
     fclose(log);
 }
 ```
+
+- `catat_log`digunakan untuk menyederhanakan proses pencatatan log.
+  - `FILE *log = fopen(FILE_LOG, "a");` akan membuka file log ("activity.log") dalam mode append. Ini memastikan bahwa setiap pesan log baru ditambahkan ke akhir file tanpa menimpa konten yang sudah ada. Jika file tidak ada, file akan dibuat.
+  - `time_t t = time(NULL); struct tm *tm = localtime(&t);` akan mendapatkan timestamp saat ini dan mengonversinya ke dalam format waktu lokal.
+  - `fprintf(log, "[%04d-%02d-%02d %02d:%02d:%02d] ", ...);` digunakan dalam penulisan timestamp ke file log dalam format `[YYYY-MM-DD HH:MM:SS]`.
+  - `va_list args; va_start(args, format); vfprintf(log, format, args); va_end(args);` berguna untuk menangani variable arguments. `catat_log` dapat dipanggil dengan berbagai format pesan (seperti `printf`). `va_list, va_start, vfprintf, dan va_end` adalah bagian dari standar C untuk bekerja dengan fungsi yang menerima sejumlah argumen yang tidak diketahui.
+  - `fprintf(log, "\n"); fclose(log);` akan menambahkan newline ke pesan log dan menutup file.
+
+## f. Tambahan Penjelasan Main Function
+
+```
+int main(int argc, char *argv[]) {
+    /* Pastikan direktori relics ada */
+    if (access(DIREKTORI_RELICS, F_OK) != 0) {
+        if (mkdir(DIREKTORI_RELICS, 0755) != 0) {
+            fprintf(stderr, "ERROR: Gagal membuat direktori %s: %s\n", 
+                    DIREKTORI_RELICS, strerror(errno));
+            return 1;
+        }
+    }
+    
+    /* Periksa dan log informasi tentang file pecahan yang ada */
+    fprintf(stderr, "Memeriksa keberadaan file pecahan di %s...\n", DIREKTORI_RELICS);
+    int file_count = 0;
+    for (int i = 0; i < 14; i++) {
+        char path[MAKS_PATH];
+        snprintf(path, sizeof(path), "%s/%s.%03d", DIREKTORI_RELICS, NAMA_FILE_UTUH, i);
+        if (access(path, R_OK) == 0) {
+            file_count++;
+            struct stat st;
+            if (stat(path, &st) == 0) {
+                fprintf(stderr, "  Ditemukan pecahan %s (%ld bytes)\n", path, (long)st.st_size);
+            } else {
+                fprintf(stderr, "  Ditemukan pecahan %s\n", path);
+            }
+        } else {
+            fprintf(stderr, "  Pecahan %s tidak ditemukan\n", path);
+        }
+    }
+    fprintf(stderr, "Total %d dari 14 pecahan ditemukan.\n", file_count);
+
+    umask(0);
+    return fuse_main(argc, argv, &operasi, NULL);
+}
+```
+
+- Inisialisasi Direktori:
+  - Kode ini memastikan bahwa direktori "relics" ada sebelum `FUSE filesystem` dimulai. Jika direktori tidak ada, kode akan mencoba membuatnya. Ini penting karena sistem file virtual bergantung pada direktori ini untuk menyimpan pecahan file.
+- Pemeriksaan File Pecahan:
+  - Kode ini memeriksa keberadaan pecahan file "Baymax.jpeg" saat program dimulai. Ini berguna untuk:
+    - Memverifikasi bahwa pecahan file yang diharapkan ada.
+    - Memberikan informasi debugging jika ada masalah dengan file pecahan.
+    - Menampilkan ukuran setiap pecahan file.
+- `fuse_main`
+  - `umask(0);` digunakan untuk mengatur file creation mask ke 0, yang berarti file akan dibuat dengan izin yang ditentukan dalam fungsi create.
+  - `return fuse_main(argc, argv, &operasi, NULL);` akan memulai loop utama FUSE. `fuse_main` adalah fungsi yang disediakan oleh pustaka FUSE yang mengambil alih eksekusi program dan memproses operasi filesystem (seperti `read`, `write`, `getattr`, dll.) yang diminta oleh sistem operasi. operasi adalah struct yang berisi pointer ke fungsi-fungsi yang kita definisikan ( `fs_getattr`, `fs_read`, dll.).
+
 
 # Soal 3
 
