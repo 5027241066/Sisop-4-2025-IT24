@@ -106,6 +106,16 @@ static int fs_readdir(const char *jalur, void *buf, fuse_fill_dir_t filler, off_
 }
 ```
 
+- `#define NAMA_FILE_UTUH "Baymax.jpeg"` mendefinisikan konstanta yang menyimpan nama file virtual agar mencegah terjadinya kesalahan penulisan dan pembacaan pada code.
+- `fs_getattr` dipanggil oleh FUSE ketika perlu untuk mendapat atribut dari suatu file.
+    - `if (strcmp(jalur + 1, NAMA_FILE_UTUH) == 0)` digunakan untuk memeriksa apakah jalur yg diminta sesuai. Jika sesuai maka akan mengeksekusi kode dalam blok `if`.
+    - `stbuf->st_mode = S_IFREG | 0444` akan menandakan bahwa ini adalah file reguler. `0444` memberikan izin baca untuk semua pengguna.
+    - `for` akan melakukan loop untuk menghitung ukuran file "Baymax.jpeg" dengan menjumlahkan semua ukuran pecahannya.
+    - Jika tidak ada pecahan file, akan return sebagai `ENOENT` (no such file or directory).
+- `fs_readdir` digunakan ketika membutuhkan daftar isi pada sebuah direktori.
+    - `filler(bf, NAMA_FILE_UTUH, NULL, 0, 0);` akan menambahkan entri ke daftar direktori, memastikan "Baymax.jpeg" akan selalu muncul pada direktori mount, meskipun dalam bentuk pecahan-pecahan file.
+
+ 
 ## b. Menggabungkan Pecahan Relics menjadi Gambar Utuh
 
 ```
@@ -174,6 +184,17 @@ static int fs_read(const char *jalur, char *buf, size_t size, off_t offset, stru
     return total_dibaca > 0 ? total_dibaca : -ENOENT;
 }
 ```
+
+- Fungsi `fs_open` digunakan untuk membuka sebuah file.
+     - `if(strcmp(jalur +1, NAMA_FILE_UTUH) != 0) return -ENOENT` memastikan open hanya diizinkan untuk file "Baymax.jpeg". Mengembalikan error jika input tidak sesuai.
+     - `catat_log(READ : %s, NAMA_FILE_UTUH);` akan mencatat log aktivitas untuk pembukaan suatu file.
+- Fungsi `fs_read` digunakan untuk membaca data suatu file, fungsi ini merupakan fungsi esensial dalam hal rekonstruksi file "Baymax.jpeg".
+     - Kode ini akan menghitung jumlah pecahan file.
+     - Loop utama akan membaca file pecahan berurutan.
+     - `offset` dan `size` akan menangani pembacaaan untuk menghitung bagian mana dari setiap pecahan yang perlu dibaca berdasarkan posisi awal dan jumlah byte yang diminta.
+     - Data yang telah dibaca akan disalin dlam buffer `buf` oleh FUSE.
+- Operasi "tampil" dan "salin" diimplementasikan melalui fungsi `fs_read`. ketika terdapat command seperti `cat` atau `cp`, maka FUSE akan memanggil `fs_read` untuk mendapatkan data file.
+-  
 
 ## c. Membuat File Baru dan Memecah File menjadi Beberapa Bagian
 
