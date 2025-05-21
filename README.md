@@ -13,7 +13,7 @@
 
 ## Daftar Isi
 ### Soal 1
-- [a. ]()
+- [a. Download Unzip](#a-download-unzip)
 - [b. ]()
 - [c. ]()
 - [d. ]()
@@ -49,6 +49,170 @@
 
 
 # Soal 1
+```
+#define BASE_DIR "anomali"
+#define IMAGE_DIR "anomali/image"
+#define LOG_FILE "anomali/conversion.log"
+#define ZIP_URL "https://drive.usercontent.google.com/u/0/uc?id=1hi_GDdP51Kn2JJMw02WmCOxuc3qrXzh5&export=download"
+#define ZIP_NAME "anomali.zip"
+```
+Code berikut berfungsi untuk mendefinisikan directory file txt setelah extract zip, directory file image yang akan digunakan untuk convert, lokasi log file, link download ZIP dan nama dari file yang akan di download.
+
+## a. Download Unzip
+```
+void download_zip() {
+    printf("Downloading zip file...\n");
+    FILE *fp = fopen(ZIP_NAME, "wb");
+    if (!fp) {
+        perror("fopen");
+        return;
+    }
+
+    CURL *curl = curl_easy_init();
+    if (curl) {
+        curl_easy_setopt(curl, CURLOPT_URL, ZIP_URL);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlwrite);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        
+        CURLcode res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+        }
+        curl_easy_cleanup(curl);
+    }
+    fclose(fp);
+
+    if (access(ZIP_NAME, F_OK) == 0) {
+        char cmd[256];
+        snprintf(cmd, sizeof(cmd), "unzip -o %s > /dev/null", ZIP_NAME);
+        int status = system(cmd);
+        if (status == 0) {
+            remove(ZIP_NAME);
+            printf("Files extracted successfully to %s/\n", BASE_DIR);
+        } else {
+            fprintf(stderr, "Unzip failed\n");
+        }
+    }
+}
+```
+Fungsi download menggunakan `curl`. Saat proses berjalan, akan ditampilkan pesan "Downloading zip file...". Setelah file berhasil didownload, kode akan mengekstrak file tersebut dan menampilkan pesan "Files extracted successfully to anomali/".
+
+Code `%s` merujuk pada `BASE_DIR`, yaitu folder anomali. Jika proses ekstrak gagal, maka akan muncul pesan "Unzip failed". Apabila ekstraksi berhasil, file ZIP akan dihapus secara otomatis menggunakan `remove(ZIP_NAME)`.
+
+## b. Convert dari hexadecimal menjadi image
+```
+void converthex(const char *filename) {
+    pthread_mutex_lock(&convert_mutex);
+    
+    char filepath[512];
+    snprintf(filepath, sizeof(filepath), "%s/%s", BASE_DIR, filename);
+    printf("Processing file: %s\n", filepath);
+
+    FILE *fp = fopen(filepath, "r");
+    if (!fp) {
+        perror("Failed to open file");
+        pthread_mutex_unlock(&convert_mutex);
+        return;
+    }
+
+    fseek(fp, 0, SEEK_END);
+    long fsize = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    if (fsize <= 0) {
+        fclose(fp);
+        pthread_mutex_unlock(&convert_mutex);
+        return;
+    }
+
+    char *hex_data = malloc(fsize + 1);
+    size_t bytes_read = fread(hex_data, 1, fsize, fp);
+    fclose(fp);
+    
+    if (bytes_read != fsize) {
+        free(hex_data);
+        pthread_mutex_unlock(&convert_mutex);
+        return;
+    }
+    hex_data[fsize] = 0;
+
+    char *clean_hex = malloc(fsize + 1);
+    int clean_len = 0;
+    for (int i = 0; i < fsize; i++) {
+        if (isxdigit(hex_data[i])) {
+            clean_hex[clean_len++] = hex_data[i];
+        }
+    }
+    clean_hex[clean_len] = '\0';
+    
+    if (!checkhex(clean_hex) || clean_len % 2 != 0) {
+        free(hex_data);
+        free(clean_hex);
+        pthread_mutex_unlock(&convert_mutex);
+        return;
+    }
+
+    int len = clean_len / 2;
+    unsigned char *img_data = malloc(len);
+    for (int i = 0; i < len; i++) {
+        sscanf(&clean_hex[i * 2], "%2hhx", &img_data[i]);
+    }
+
+    mkdir(IMAGE_DIR, 0755);
+
+    char output_path[512];
+    snprintf(output_path, sizeof(output_path), "%s/%s", IMAGE_DIR, img_filename);
+
+    FILE *img = fopen(output_path, "wb");
+    if (img) {
+        fwrite(img_data, 1, len, img);
+        fclose(img);
+        printf("Created image: %s\n", output_path);
+    }
+
+    free(hex_data);
+    free(clean_hex);
+    free(img_data);
+    pthread_mutex_unlock(&convert_mutex);
+}
+```
+```
+static int xmp_open(const char *path, struct fuse_file_info *fi) {
+    char fpath[512];
+    snprintf(fpath, sizeof(fpath), "%s%s", dirpath, path);
+
+    int res = open(fpath, fi->flags);
+    if (res == -1)
+        return -errno;
+
+    close(res);
+
+    const char *fname = strrchr(path, '/') ? strrchr(path, '/') + 1 : path;
+    if (strstr(fname, ".txt") != NULL) {
+        converthex(fname);
+    }
+
+    return 0;
+}
+```
+Fungsi converthex digunakan untuk mengubah isi file `.txt` yang berisi hexadecimal menjadi file gambar `.png`. Pertama-tama code membuka file `.txt` dari direktori anomali dan membaca seluruh isinya ke dalam memori. Setelah isi file dibaca, karakter yang bukan hexadecimal akan dibuang. Data yang sudah dibersihkan kemudian dicek menggunakan fungsi `checkhex` untuk memastikan  hanya karakter hexadecimal yang didalamnya. Ketika code berjalan akan muncul message "Processing file: (file path & name)". Namun jika gagal maka akan muncul message "Failed to open file". 
+
+Selanjutnya, data hexadecimal di convert menjadi data biner (byte array) menggunakan `sscanf`. Hasil convert dimasukkan ke file gambar `.png` di dalam direktori `anomali/image`. Fungsi `converthex` dilakukan pada fungsi `xmp_open`. Apabila file yang dibuka memiliki ekstensi `.txt`, maka secara otomatis isi file akan dikonversi menjadi gambar menggunakan `converthex`. Ketika file berhasil di convert maka akan muncul message "Created image: (file name)"
+
+## c. File Name
+```
+char file_timestamp[32];
+    strftime(file_timestamp, sizeof(file_timestamp), "%Y-%m-%d_%H:%M:%S", tm_info);
+```
+```
+char img_filename[256];
+    snprintf(img_filename, sizeof(img_filename), "%.*s_image_%s.png", 
+         (int)(strlen(filename) - 4), filename, file_timestamp);
+char output_path[512];
+snprintf(output_path, sizeof(output_path), "%s/%s", IMAGE_DIR, img_filename);
+```
+File name disini menggunakan format [nama file]_image_[YYYY-mm-dd]_[HH:MM:SS]. Untuk tanggal dan jam diambil current time saat proses konversi.
 
 # Soal 2
 ## a. Membuat Sistem FUSE untuk Merepresentasikan Gambar
