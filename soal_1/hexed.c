@@ -1,173 +1,267 @@
+#define FUSE_USE_VERSION 35
+
+#include <fuse3/fuse.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <time.h>
+#include <curl/curl.h>
+#include <pthread.h>
+#include <ctype.h>
 
-void createfolder() {
-    struct stat st = {0};
-    if (stat("anomali/image", &st) == -1) {
-        if (mkdir("anomali/image", 0777) == -1) {
-            perror("Gagal membuat folder anomali/image");
-            exit(1);
+#define BASE_DIR "anomali"
+#define IMAGE_DIR "anomali/image"
+#define LOG_FILE "anomali/conversion.log"
+#define ZIP_URL "https://drive.usercontent.google.com/u/0/uc?id=1hi_GDdP51Kn2JJMw02WmCOxuc3qrXzh5&export=download"
+#define ZIP_NAME "anomali.zip"
+
+static const char *dirpath = BASE_DIR;
+pthread_mutex_t convert_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+struct file_info {
+    char *data;
+    size_t size;
+};
+
+size_t curlwrite(void *ptr, size_t size, size_t nmemb, FILE *stream) {
+    return fwrite(ptr, size, nmemb, stream);
+}
+
+void download_zip() {
+    printf("Downloading zip file...\n");
+    FILE *fp = fopen(ZIP_NAME, "wb");
+    if (!fp) {
+        perror("fopen");
+        return;
+    }
+
+    CURL *curl = curl_easy_init();
+    if (curl) {
+        curl_easy_setopt(curl, CURLOPT_URL, ZIP_URL);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlwrite);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        
+        CURLcode res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+        }
+        curl_easy_cleanup(curl);
+    }
+    fclose(fp);
+
+    if (access(ZIP_NAME, F_OK) == 0) {
+        char cmd[256];
+        snprintf(cmd, sizeof(cmd), "unzip -o %s > /dev/null", ZIP_NAME);
+        int status = system(cmd);
+        if (status == 0) {
+            remove(ZIP_NAME);
+            printf("Files extracted successfully to %s/\n", BASE_DIR);
+        } else {
+            fprintf(stderr, "Unzip failed\n");
         }
     }
 }
 
-int hexIMG(const char *hex_filename) {
-    FILE *hex_file = fopen(hex_filename, "r");
-    if (!hex_file) {
-        perror("Gagal membuka file hex");
-        return 1;
-    }
-
-    const char *filename = strrchr(hex_filename, '/');
-    filename = filename ? filename + 1 : hex_filename;
-
-    char id[64];
-    strncpy(id, filename, sizeof(id));
-    char *dot = strrchr(id, '.');
-    if (dot) *dot = '\0';
-
-    time_t now = time(NULL);
-    struct tm *t = localtime(&now);
-    char timestamp[64];
-    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d_%H:%M:%S", t);
-
-    char output_filename[128];
-    snprintf(output_filename, sizeof(output_filename), "%s_image_%s.png", id, timestamp);
-
-    char output_path[256];
-    snprintf(output_path, sizeof(output_path), "anomali/image/%s", output_filename);
-
-    FILE *img_file = fopen(output_path, "wb");
-    if (!img_file) {
-        perror("Gagal membuat file gambar");
-        fclose(hex_file);
-        return 1;
-    }
-
-    char *hex_data = NULL;
-    size_t size = 0, cap = 4096;
-    hex_data = malloc(cap);
-    if (!hex_data) {
-        perror("Gagal alokasi memori");
-        fclose(hex_file);
-        fclose(img_file);
-        return 1;
-    }
-
-    int c;
-    while ((c = fgetc(hex_file)) != EOF) {
-        if ((c >= '0' && c <= '9') ||
-            (c >= 'a' && c <= 'f') ||
-            (c >= 'A' && c <= 'F')) {
-            if (size + 1 >= cap) {
-                cap *= 2;
-                hex_data = realloc(hex_data, cap);
-                if (!hex_data) {
-                    perror("Gagal realloc");
-                    fclose(hex_file);
-                    fclose(img_file);
-                    return 1;
-                }
-            }
-            hex_data[size++] = (char)c;
+int checkhex(const char *str) {
+    for (int i = 0; str[i] != '\0'; i++) {
+        if (!isxdigit(str[i])) {
+            return 0;
         }
     }
+    return 1;
+}
 
-    if (size % 2 != 0) size--;
+void converthex(const char *filename) {
+    pthread_mutex_lock(&convert_mutex);
+    
+    char filepath[512];
+    snprintf(filepath, sizeof(filepath), "%s/%s", BASE_DIR, filename);
+    printf("Processing file: %s\n", filepath);
 
-    for (size_t i = 0; i < size; i += 2) {
-        char byte_str[3] = { hex_data[i], hex_data[i+1], '\0' };
-        unsigned char byte = (unsigned char) strtol(byte_str, NULL, 16);
-        fwrite(&byte, 1, 1, img_file);
+    FILE *fp = fopen(filepath, "r");
+    if (!fp) {
+        perror("Failed to open file");
+        pthread_mutex_unlock(&convert_mutex);
+        return;
     }
 
-    fclose(hex_file);
-    fclose(img_file);
+    fseek(fp, 0, SEEK_END);
+    long fsize = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    if (fsize <= 0) {
+        fclose(fp);
+        pthread_mutex_unlock(&convert_mutex);
+        return;
+    }
+
+    char *hex_data = malloc(fsize + 1);
+    size_t bytes_read = fread(hex_data, 1, fsize, fp);
+    fclose(fp);
+    
+    if (bytes_read != fsize) {
+        free(hex_data);
+        pthread_mutex_unlock(&convert_mutex);
+        return;
+    }
+    hex_data[fsize] = 0;
+
+    char *clean_hex = malloc(fsize + 1);
+    int clean_len = 0;
+    for (int i = 0; i < fsize; i++) {
+        if (isxdigit(hex_data[i])) {
+            clean_hex[clean_len++] = hex_data[i];
+        }
+    }
+    clean_hex[clean_len] = '\0';
+    
+    if (!checkhex(clean_hex) || clean_len % 2 != 0) {
+        free(hex_data);
+        free(clean_hex);
+        pthread_mutex_unlock(&convert_mutex);
+        return;
+    }
+
+    int len = clean_len / 2;
+    unsigned char *img_data = malloc(len);
+    for (int i = 0; i < len; i++) {
+        sscanf(&clean_hex[i * 2], "%2hhx", &img_data[i]);
+    }
+
+    mkdir(IMAGE_DIR, 0755);
+
+    time_t t = time(NULL);
+    struct tm *tm_info = localtime(&t);
+    char log_timestamp[32];
+    strftime(log_timestamp, sizeof(log_timestamp), "%Y-%m-%d", tm_info);
+
+    char log_time[32];
+    strftime(log_time, sizeof(log_time), "%H:%M:%S", tm_info);
+
+    char file_timestamp[32];
+    strftime(file_timestamp, sizeof(file_timestamp), "%Y-%m-%d_%H:%M:%S", tm_info);
+
+    char img_filename[256];
+    snprintf(img_filename, sizeof(img_filename), "%.*s_image_%s.png", 
+         (int)(strlen(filename) - 4), filename, file_timestamp);
+
+    char output_path[512];
+    snprintf(output_path, sizeof(output_path), "%s/%s", IMAGE_DIR, img_filename);
+
+    FILE *img = fopen(output_path, "wb");
+    if (img) {
+        fwrite(img_data, 1, len, img);
+        fclose(img);
+        printf("Created image: %s\n", output_path);
+    }
+
+    FILE *log = fopen(LOG_FILE, "a");
+    if (log) {
+        fprintf(log, "[%s][%s]: Successfully converted hexadecimal text %s to %s.\n", 
+        log_timestamp, log_time, filename, img_filename);
+        fclose(log);
+    }
+
     free(hex_data);
+    free(clean_hex);
+    free(img_data);
+    pthread_mutex_unlock(&convert_mutex);
+}
 
-    char log_path[256];
-    strncpy(log_path, hex_filename, sizeof(log_path));
-    char *last_slash = strrchr(log_path, '/');
-    if (last_slash) {
-        *last_slash = '\0';
-    } else {
-        strcpy(log_path, ".");
+static int xmp_getattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi) {
+    char fpath[512];
+    snprintf(fpath, sizeof(fpath), "%s%s", dirpath, path);
+    return lstat(fpath, stbuf);
+}
+
+static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+                       off_t offset, struct fuse_file_info *fi,
+                       enum fuse_readdir_flags flags) {
+    char fpath[512];
+    snprintf(fpath, sizeof(fpath), "%s%s", dirpath, path);
+
+    DIR *dp = opendir(fpath);
+    if (dp == NULL)
+        return -errno;
+
+    struct dirent *de;
+    while ((de = readdir(dp)) != NULL) {
+        struct stat st = {0};
+        st.st_ino = de->d_ino;
+        st.st_mode = de->d_type << 12;
+        if (filler(buf, de->d_name, &st, 0, 0))
+            break;
     }
-    strncat(log_path, "/conversion.log", sizeof(log_path) - strlen(log_path) - 1);
 
-    FILE *log_file = fopen(log_path, "a");
-    if (log_file) {
-        fprintf(log_file, "[%04d-%02d-%02d][%02d:%02d:%02d]: Successfully converted hexadecimal text %s to %s.\n",
-            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-            t->tm_hour, t->tm_min, t->tm_sec,
-            filename, output_filename
-        );
-        fclose(log_file);
-    }
-
-    printf("Gambar berhasil dibuat: %s\n", output_path);
+    closedir(dp);
     return 0;
 }
 
-int main() {
-    int status;
+static int xmp_open(const char *path, struct fuse_file_info *fi) {
+    char fpath[512];
+    snprintf(fpath, sizeof(fpath), "%s%s", dirpath, path);
 
-    pid_t pid1 = fork();
-    if (pid1 == 0) {
-        char *curl_argv[] = {
-            "/usr/bin/curl", "-L", "-o", "anomali.zip",
-            "https://drive.usercontent.google.com/u/0/uc?id=1hi_GDdP51Kn2JJMw02WmCOxuc3qrXzh5&export=download",
-            NULL
-        };
-        execve("/usr/bin/curl", curl_argv, NULL);
-        perror("Gagal download");
-        exit(1);
-    }
-    waitpid(pid1, &status, 0);
+    int res = open(fpath, fi->flags);
+    if (res == -1)
+        return -errno;
 
-    pid_t pid2 = fork();
-    if (pid2 == 0) {
-        char *unzip_argv[] = { "/usr/bin/unzip", "-o", "anomali.zip", NULL };
-        execve("/usr/bin/unzip", unzip_argv, NULL);
-        perror("Gagal unzip");
-        exit(1);
-    }
-    waitpid(pid2, &status, 0);
+    close(res);
 
-    pid_t pid3 = fork();
-    if (pid3 == 0) {
-        char *rm_argv[] = { "/usr/bin/rm", "-f", "anomali.zip", NULL };
-        execve("/usr/bin/rm", rm_argv, NULL);
-        perror("Gagal remove");
-        exit(1);
-    }
-    waitpid(pid3, &status, 0);
-
-    createfolder();
-
-    DIR *dir;
-    struct dirent *entry;
-    dir = opendir("anomali");
-    if (dir == NULL) {
-        perror("Gagal membuka direktori anomali");
-        return 1;
+    const char *fname = strrchr(path, '/') ? strrchr(path, '/') + 1 : path;
+    if (strstr(fname, ".txt") != NULL) {
+        converthex(fname);
     }
 
-    while ((entry = readdir(dir)) != NULL) {
-        if (strstr(entry->d_name, ".txt")) {
-            char hex_file_path[256];
-            snprintf(hex_file_path, sizeof(hex_file_path), "anomali/%s", entry->d_name);
-            hexIMG(hex_file_path);
-        }
-    }
-
-    closedir(dir);
     return 0;
+}
+
+static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
+                    struct fuse_file_info *fi) {
+    char fpath[512];
+    snprintf(fpath, sizeof(fpath), "%s%s", dirpath, path);
+    int fd = open(fpath, O_RDONLY);
+    if (fd == -1)
+        return -errno;
+
+    int res = pread(fd, buf, size, offset);
+    if (res == -1)
+        res = -errno;
+
+    close(fd);
+    return res;
+}
+
+static const struct fuse_operations xmp_oper = {
+    .getattr = xmp_getattr,
+    .readdir = xmp_readdir,
+    .open    = xmp_open,
+    .read    = xmp_read,
+};
+
+int main(int argc, char *argv[]) {
+    mkdir(BASE_DIR, 0755);
+    mkdir(IMAGE_DIR, 0755);
+
+    if (access("anomali/1.txt", F_OK) != 0) {
+        download_zip();
+    }
+
+    DIR *dir = opendir(BASE_DIR);
+    if (dir) {
+        struct dirent *entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_type == DT_REG && strstr(entry->d_name, ".txt") != NULL) {
+                converthex(entry->d_name);
+            }
+        }
+        closedir(dir);
+    }
+
+    return fuse_main(argc, argv, &xmp_oper, NULL);
 }
