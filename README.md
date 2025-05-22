@@ -14,9 +14,9 @@
 ## Daftar Isi
 ### Soal 1
 - [a. Download Unzip](#a-download-unzip)
-- [b. ]()
-- [c. ]()
-- [d. ]()
+- [b. Convert dari hexadecimal menjadi image](#b-convert-dari-hexadecimal-menjadi-image)
+- [c. File Name](#c-file-name)
+- [d. Conversion.log]()
 
   
 ### Soal 2
@@ -213,6 +213,27 @@ char output_path[512];
 snprintf(output_path, sizeof(output_path), "%s/%s", IMAGE_DIR, img_filename);
 ```
 File name disini menggunakan format [nama file]_image_[YYYY-mm-dd]_[HH:MM:SS]. Untuk tanggal dan jam diambil current time saat proses konversi.
+
+## d. Conversion.log
+```
+time_t t = time(NULL);
+struct tm *tm_info = localtime(&t);
+char log_timestamp[32];
+strftime(log_timestamp, sizeof(log_timestamp), "%Y-%m-%d", tm_info);
+
+char log_time[32];
+strftime(log_time, sizeof(log_time), "%H:%M:%S", tm_info);
+```
+```
+FILE *log = fopen(LOG_FILE, "a");
+if (log) {
+    fprintf(log, "[%s][%s]: Successfully converted hexadecimal text %s to %s.\n", 
+    log_timestamp, log_time, filename, img_filename);
+    fclose(log);
+}
+
+```
+`struct tm *tm_info = localtime(&t);` Digunakan untuk mengambil tanggal dan waktu pada saat conversion dijalankan. Code `strftime(log_timestamp, sizeof(log_timestamp), "%Y-%m-%d", tm_info);` dan `strftime(log_time, sizeof(log_time), "%H:%M:%S", tm_info);` digunakan untuk membentuk format yang diperlukan yaitu untuk tanggal [YYYY-MM-DD] dan untuk waktu [HH:MM:SS]. `FILE *log = fopen(LOG_FILE, "a");` Berfungsi untuk membuka log file yang kemudian akan dituliskan sesuai format "[YYYY-MM-DD][HH:MM:SS]: Successfully converted hexadecimal text [nama file string] to [nama file image]." jika file hex berhasil di convert menjadi `.png`. Setelah itu file log akan ditutup dengan `fclose(log);` agar isinya tersimpan. 
 
 # Soal 2
 ## a. Membuat Sistem FUSE untuk Merepresentasikan Gambar
