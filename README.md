@@ -38,13 +38,13 @@
 
  
 ### Soal 4
-- [a. Starter Area - Starter Chiho](#a-starter-area-starter--chiho)
-- [b. World's End Area - Metropolis Chiho](#b-world-s-end-area--metropolis-chiho)
-- [c. World Tree Area - Dragon Chiho](#c-world-tree-area--dragon-chiho)
-- [d. Black Rose Area - Black Rose Chiho](#d-black-rose-area--black-rose-chiho)
-- [e. Tenkai Area - Heaven Chiho](#e-tenkai-area--heaven-chiho)
-- [f. Youth Area - Skystreet Chiho](#f-youth-area--skystreet-chiho)
-- [g. Prism Area - 7sRef Chiho](#g-prism-area--7sref-chiho)
+- [a. Starter Area - Starter Chiho](#a-starter-area---starter-chiho)
+- [b. World's End Area - Metropolis Chiho](#b-worlds-end-area---metropolis-chiho)
+- [c. World Tree Area - Dragon Chiho](#c-world-tree-area---dragon-chiho)
+- [d. Black Rose Area - Black Rose Chiho](#d-black-rose-area---black-rose-chiho)
+- [e. Tenkai Area - Heaven Chiho](#e-tenkai-area---heaven-chiho)
+- [f. Youth Area - Skystreet Chiho](#f-youth-area---skystreet-chiho)
+- [g. Prism Area - 7sRef Chiho](#g-prism-area---7sref-chiho)
 
 
 
@@ -643,91 +643,87 @@ int main(int argc, char *argv[]) {
 
 ```
 static int get_real_path_chiho(char *full_path, const char *path) {
-    // Fungsi utilitas untuk mendapatkan path asli di direktori sumber
-    // Misal: /fuse_dir/starter/file.txt -> /home/deefen/sisopmodul4/soalno4/chiho/starter/file.txt
     sprintf(full_path, "%s%s", direktori_sumber_chiho, path);
     return 0;
 }
 
-// ... (dalam fungsi maimai_getattr, maimai_readdir, maimai_read, maimai_write, dll.)
-
 static int maimai_getattr(const char *path, struct stat *stbuf) {
     char path_asli_chiho[1024];
-    get_real_path_chiho(path_asli_chiho, path); // Mendapatkan path asli
-    // ...
-    // Di sini tidak ada penanganan khusus untuk "starter" karena tidak ada enkripsi/transformasi.
-    // stat() akan dipanggil langsung pada path_asli_chiho.
-    // ...
+    get_real_path_chiho(path_asli_chiho, path); 
 }
 
 static int maimai_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                            off_t offset, struct fuse_file_info *fi) {
     char path_asli_chiho[1024];
-    get_real_path_chiho(path_asli_chiho, path); // Mendapatkan path asli
-    // ...
-    // Di sini tidak ada penanganan khusus untuk "starter".
-    // readdir() akan langsung membaca isi direktori asli.
-    // ...
+    get_real_path_chiho(path_asli_chiho, path);
 }
 
 static int maimai_read(const char *path, char *buf, size_t size, off_t offset,
                         struct fuse_file_info *fi) {
-    // ...
-    if (strncmp(path_relatif + 1, "starter", 7) == 0) { // Cek jika path dimulai dengan "/starter"
-        // Tidak ada enkripsi/transformasi. Langsung baca dari file asli.
+    if (strncmp(path_relatif + 1, "starter", 7) == 0) { 
         ret = pread(fd, buf, size, offset);
     }
-    // ...
 }
 
 static int maimai_write(const char *path, const char *buf, size_t size,
                          off_t offset, struct fuse_file_info *fi) {
-    // ...
-    if (strncmp(path_relatif + 1, "starter", 7) == 0) { // Cek jika path dimulai dengan "/starter"
-        // Tidak ada enkripsi/transformasi. Langsung tulis ke file asli.
+    if (strncmp(path_relatif + 1, "starter", 7) == 0) {
         ret = pwrite(fd, buf, size, offset);
     }
-    // ...
 }
 
 static int maimai_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     char path_asli_chiho[1024];
-    get_real_path_chiho(path_asli_chiho, path); // Mendapatkan path asli
-    // ...
-    // Jika di direktori starter, tidak ada perubahan nama atau enkripsi.
-    // File akan dibuat langsung dengan nama dan mode yang diberikan.
-    // ...
+    get_real_path_chiho(path_asli_chiho, path); 
 }
 
 static int maimai_unlink(const char *path) {
     char path_asli_chiho[1024];
-    get_real_path_chiho(path_asli_chiho, path); // Mendapatkan path asli
-    // ...
-    // Jika di direktori starter, langsung hapus file.
-    // ...
+    get_real_path_chiho(path_asli_chiho, path);
 }
 
 static int maimai_mkdir(const char *path, mode_t mode) {
     char path_asli_chiho[1024];
-    get_real_path_chiho(path_asli_chiho, path); // Mendapatkan path asli
-    // ...
-    // Jika di direktori starter, langsung buat direktori.
-    // ...
+    get_real_path_chiho(path_asli_chiho, path);
 }
 
-// ... (dalam main)
 const char *areas[] = {"starter", "metro", "dragon", "blackrose", "heaven", "youth", "7sref"};
 for (size_t i = 0; i < sizeof(areas) / sizeof(areas[0]); ++i) {
     char area_path[1024];
     sprintf(area_path, "%s/%s", direktori_sumber_chiho, areas[i]);
-    mkdir(area_path, 0755); // Memastikan direktori starter ada
+    mkdir(area_path, 0755); 
 }
 ```
+- `get_real_path_chiho(char *full_path, const char *path)`
+  - Fungsi ini adalah utilitas dasar untuk mengonversi path virtual FUSE (misalnya `/starter/file.txt`) menjadi path fisik di sistem file asli (`/home/deefen/sisopmodul4/soalno4/chiho/starter/file.txt`).
+  - Untuk `starter` chiho, fungsi ini menggabungkan `direktori_sumber_chiho` dengan path yang diberikan oleh FUSE. Tidak ada modifikasi nama atau translasi khusus di sini karena `starter` adalah area dasar.
+- `maimai_getattr(const char *path, struct stat *stbuf)`
+  - Ketika sistem operasi (melalui FUSE) meminta atribut file (seperti ukuran, waktu modifikasi, hak akses), fungsi ini akan dipanggil.
+  - Di dalam fungsi ini, `get_real_path_chiho` dipanggil untuk mendapatkan path asli. Karena `starter` tidak memiliki perlakuan khusus, `stat()` akan langsung dipanggil pada path asli tersebut untuk mendapatkan atributnya.
+- `maimai_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi)`
+  - Ketika sistem operasi meminta daftar isi direktori (misalnya saat menjalankan ls), fungsi ini dipanggil.
+  - Sama seperti `getattr`, `get_real_path_chiho` digunakan untuk menemukan direktori asli. Kemudian, `readdir()` standar akan membaca isi direktori tersebut dan `filler()` akan menambahkan setiap entri ke buffer FUSE. Tidak ada modifikasi nama file yang dilakukan di sini untuk `starter`.
+- `maimai_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)`
+  - Ketika sistem operasi ingin membaca data dari file, fungsi ini dipanggil.
+  - `if (strncmp(path_relatif + 1, "starter", 7) == 0)` memeriksa apakah file yang diakses berada di dalam direktori `/starter`.
+  - Karena `starter` tidak memiliki enkripsi atau transformasi, operasi `pread(fd, buf, size, offset)` dilakukan secara langsung. Ini berarti data dibaca apa adanya dari file fisik dan diberikan ke buffer FUSE.
+- `maimai_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi)`
+  - Ketika sistem operasi ingin menulis data ke file, fungsi ini dipanggil.
+  - Sama seperti `read`, kondisi `if` yang sama memeriksa direktori `starter`.
+  - Operasi `pwrite(fd, buf, size, offset)` dilakukan secara langsung. Data dari buffer FUSE ditulis apa adanya ke file fisik.
+- `maimai_create(const char *path, mode_t mode, struct fuse_file_info *fi)`
+  - Untuk membuat file baru. Path asli diperoleh melalui `get_real_path_chiho`. Karena `starter` tidak memiliki penamaan khusus, `open()` dengan flag `O_CREAT` dan `O_EXCL` akan membuat file dengan nama yang sama di lokasi fisik.
+- `maimai_unlink(const char *path)`
+  - Untuk menghapus file. Path asli diperoleh, dan `unlink()` standar dipanggil untuk menghapus file di lokasi fisik.
+- `maimai_mkdir(const char *path, mode_t mode)`
+  - Untuk membuat direktori baru. Path asli diperoleh, dan `mkdir()` standar dipanggil untuk membuat direktori di lokasi fisik.
+- `main` function (inisialisasi direktori)
+  - Bagian `const char *areas[] = {"starter", ...}` dan `for loop` di main memastikan bahwa direktori `starter` (dan direktori area lainnya) ada di `direktori_sumber_chiho` saat FUSE filesystem dimulai.
+
 
 ## b. World's End Area - Metropolis Chiho
 
 ```
-// Fungsi utilitas untuk Metro Shift
 void metro_shift(char *teks) {
     while (*teks) {
         if (*teks == 'A' || *teks == 'a') {
@@ -741,75 +737,61 @@ void metro_shift(char *teks) {
     }
 }
 
-// ...
-
 static int maimai_getattr(const char *path, struct stat *stbuf) {
-    // ...
     char path_asli_chiho[1024];
     char nama_file_metro_shifted[1024];
     char *nama_file_start = strrchr(path_relatif, '/');
     if (nama_file_start) {
-        nama_file_start++; // Lewati '/'
+        nama_file_start++; 
     } else {
-        nama_file_start = path_relatif; // Jika tidak ada '/', berarti path adalah nama file itu sendiri
+        nama_file_start = path_relatif;
     }
 
     if (strncmp(path_relatif + 1, "metro/", 6) == 0 && nama_file_start != NULL && *nama_file_start != '\0') {
         strcpy(nama_file_metro_shifted, nama_file_start);
-        metro_shift(nama_file_metro_shifted); // Shift nama file
+        metro_shift(nama_file_metro_shifted); 
         sprintf(path_asli_chiho, "%s/metro/%s", direktori_sumber_chiho, nama_file_metro_shifted);
     } else {
-        // Untuk path lain, gunakan path asli
         get_real_path_chiho(path_asli_chiho, path);
     }
-    // ...
 }
 
 static int maimai_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                            off_t offset, struct fuse_file_info *fi) {
-    // ...
-    if (strcmp(path_relatif, "/metro") == 0) { // Jika masuk ke direktori metro
-        // Iterasi melalui direktori asli
+    if (strcmp(path_relatif, "/metro") == 0) {
         while ((dp = readdir(dp_dir)) != NULL) {
             char nama_asli_temp[1024];
             strcpy(nama_asli_temp, dp->d_name);
-            metro_shift(nama_asli_temp); // Shift kembali nama file yang ditemukan
-            // Hanya tampilkan nama file yang "normal" ke pengguna
+            metro_shift(nama_asli_temp); 
             if (filler(buf, nama_asli_temp, &st, 0)) {
                 closedir(dp_dir);
                 return 0;
             }
         }
     } else {
-        // Untuk direktori lain, gunakan perilaku default
-        // ... (kode yang memanggil readdir di direktori asli)
     }
-    // ...
 }
 
 static int maimai_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
-    // ...
     char path_asli_chiho[1024];
     char nama_file_metro_shifted[1024];
     char *nama_file_start = strrchr(path, '/');
     if (nama_file_start) {
         nama_file_start++;
     } else {
-        nama_file_start = (char*)path; // Should not happen for file creation inside a dir
+        nama_file_start = (char*)path; 
     }
 
-    if (strncmp(path + 1, "metro/", 6) == 0) { // Jika file dibuat di dalam direktori metro
+    if (strncmp(path + 1, "metro/", 6) == 0) { 
         strcpy(nama_file_metro_shifted, nama_file_start);
-        metro_shift(nama_file_metro_shifted); // Shift nama file yang akan dibuat
+        metro_shift(nama_file_metro_shifted); 
         sprintf(path_asli_chiho, "%s/metro/%s", direktori_sumber_chiho, nama_file_metro_shifted);
     } else {
         get_real_path_chiho(path_asli_chiho, path);
     }
-    // ...
 }
 
 static int maimai_unlink(const char *path) {
-    // ...
     char path_asli_chiho[1024];
     char nama_file_metro_shifted[1024];
     char *nama_file_start = strrchr(path, '/');
@@ -819,21 +801,41 @@ static int maimai_unlink(const char *path) {
         nama_file_start = (char*)path;
     }
 
-    if (strncmp(path + 1, "metro/", 6) == 0) { // Jika file dihapus di direktori metro
+    if (strncmp(path + 1, "metro/", 6) == 0) { 
         strcpy(nama_file_metro_shifted, nama_file_start);
-        metro_shift(nama_file_metro_shifted); // Shift nama file yang akan dihapus
+        metro_shift(nama_file_metro_shifted); 
         sprintf(path_asli_chiho, "%s/metro/%s", direktori_sumber_chiho, nama_file_metro_shifted);
     } else {
         get_real_path_chiho(path_asli_chiho, path);
     }
-    // ...
 }
 ```
 
-## c. World Tree Area - Dragon Chiho
+- `void metro_shift(char *teks)`
+  - Fungsi utilitas inti untuk `metro` chiho. Ini mengimplementasikan "Metro Shift" yang mengubah karakter `A/a` menjadi `I`, `I/i` menjadi `O`, dan `O/o` menjadi `A`. Karakter lain tidak berubah. Fungsi ini memodifikasi string teks secara in-place.
+- `maimai_getattr(const char *path, struct stat *stbuf)`
+  - Ketika path yang diminta dimulai dengan `/metro/`, fungsi ini melakukan penanganan khusus untuk nama file.
+  - `strrchr(path_relatif, '/')` digunakan untuk mendapatkan nama file dari path virtual FUSE.
+  - Nama file ini kemudian di shift menggunakan `metro_shift()`.
+  - Path asli di backend (`direktori_sumber_chiho/metro/nama_file_metro_shifted`) dibuat dan `stat()` dipanggil pada path yang sudah di-shift ini untuk mendapatkan atribut file. Ini penting agar FUSE dapat menemukan file fisik yang namanya sudah di shift.
+- `maimai_readdir(const char *path, void *buf, fuse_fill_dir_t filler, ...)`
+  - Jika direktori yang dibaca adalah `/metro`
+  - Fungsi ini membuka direktori fisik `/home/deefen/sisopmodul4/soalno4/chiho/metro`.
+  - Saat membaca setiap entri file (`dp->d_name`) dari direktori fisik, nama file tersebut dikembalikan ke bentuk aslinya (di-shift balik) menggunakan `metro_shift(nama_asli_temp)`. Ini memastikan bahwa pengguna FUSE melihat nama file yang tidak di-shift.
+  - `filler()` kemudian digunakan untuk menampilkan nama file yang sudah di shift balik ke pengguna FUSE.
+- `maimai_create(const char *path, mode_t mode, struct fuse_file_info *fi)`
+  - Jika file baru dibuat di dalam `/metro/`.
+  - Nama file yang diberikan oleh pengguna FUSE (path) diambil, di shift menggunakan `metro_shift()`.
+  - Path asli yang sudah di-shift digunakan untuk memanggil `open()` untuk membuat file fisik dengan nama yang sudah di-shift.
+- `maimai_unlink(const char *path)`
+  - Ketika file dihapus di dalam `/metro/`.
+  - Sama seperti `create`, nama file dari path yang diberikan pengguna di shift menggunakan `metro_shift()`.
+  - Path asli yang sudah di shift ini kemudian digunakan untuk memanggil `unlink()` untuk menghapus file fisik yang namanya sudah di shift.
 
+
+
+## c. World Tree Area - Dragon Chiho
 ```
-// Fungsi utilitas untuk ROT13
 void rot13(char *teks) {
     while (*teks) {
         if ((*teks >= 'a' && *teks <= 'z') || (*teks >= 'A' && *teks <= 'Z')) {
@@ -847,78 +849,78 @@ void rot13(char *teks) {
     }
 }
 
-// ...
-
 static int maimai_read(const char *path, char *buf, size_t size, off_t offset,
                         struct fuse_file_info *fi) {
-    // ...
-    if (strncmp(path_relatif + 1, "dragon", 6) == 0) { // Cek jika path dimulai dengan "/dragon"
-        char *buffer_baca = malloc(size); // Alokasi buffer untuk membaca data asli
+    if (strncmp(path_relatif + 1, "dragon", 6) == 0) { 
+        char *buffer_baca = malloc(size); 
         if (buffer_baca == NULL) return -ENOMEM;
 
-        ret = pread(fd, buffer_baca, size, offset); // Baca data asli
+        ret = pread(fd, buffer_baca, size, offset); 
         if (ret > 0) {
-            rot13(buffer_baca); // Lakukan ROT13 pada data yang dibaca
-            memcpy(buf, buffer_baca, ret); // Salin ke buffer output FUSE
+            rot13(buffer_baca); 
+            memcpy(buf, buffer_baca, ret); 
         }
         free(buffer_baca);
     }
-    // ...
 }
 
 static int maimai_write(const char *path, const char *buf, size_t size,
                          off_t offset, struct fuse_file_info *fi) {
-    // ...
-    if (strncmp(path_relatif + 1, "dragon", 6) == 0) { // Cek jika path dimulai dengan "/dragon"
-        char *buffer_tulis = strdup(buf); // Duplikasi buffer untuk ROT13
+    if (strncmp(path_relatif + 1, "dragon", 6) == 0) { 
+        char *buffer_tulis = strdup(buf); 
         if (buffer_tulis == NULL) return -ENOMEM;
 
-        rot13(buffer_tulis); // Lakukan ROT13 pada data yang akan ditulis
-        ret = pwrite(fd, buffer_tulis, size, offset); // Tulis data yang sudah di-ROT13
+        rot13(buffer_tulis); 
+        ret = pwrite(fd, buffer_tulis, size, offset); 
         free(buffer_tulis);
     }
-    // ...
 }
 ```
+
+- `void rot13(char *teks)`
+  - Fungsi utilitas inti untuk `dragon` chiho. Ini mengimplementasikan enkripsi `ROT13`. Fungsi ini memeriksa apakah karakter adalah huruf alfabet (besar atau kecil) dan menggesernya 13 posisi. Jika lebih dari m/M, maka dikurangi 13. Ini adalah enkripsi/dekripsi simetris.
+- `maimai_read(const char *path, char *buf, size_t size, off_t offset, ...)`
+  - Jika path yang diakses dimulai dengan `/dragon`.
+  - Fungsi ini membaca seluruh blok data yang diminta (`size`) dari file fisik yang terletak di direktori `dragon` ke dalam `buffer_baca`.
+  - Setelah membaca, `rot13(buffer_baca)` dipanggil untuk mendekripsi konten yang dibaca dari file.
+  - Data yang sudah didekripsi kemudian disalin ke `buf` (buffer output FUSE) yang akan diberikan kepada aplikasi pengguna.
+- `maimai_write(const char *path, const char *buf, size_t size, off_t offset, ...)`
+  - Jika path yang dituju dimulai dengan `/dragon`.
+  - Fungsi ini menduplikasi buffer data yang akan ditulis (`buf`) ke `buffer_tulis`.
+  - `rot13(buffer_tulis)` dipanggil untuk mengenkripsi konten data sebelum ditulis ke file fisik.
+  - Data yang sudah dienkripsi kemudian ditulis ke file fisik di direktori dragon menggunakan `pwrite()`.
 
 ## d. Black Rose Area - Black Rose Chiho
 
 ```
-// ... (dalam fungsi maimai_getattr, maimai_readdir, maimai_read, maimai_write, dll.)
-
 static int maimai_read(const char *path, char *buf, size_t size, off_t offset,
                         struct fuse_file_info *fi) {
-    // ...
-    if (strncmp(path_relatif + 1, "blackrose", 9) == 0) { // Cek jika path dimulai dengan "/blackrose"
-        // Tidak ada enkripsi/transformasi. Langsung baca dari file asli.
+    if (strncmp(path_relatif + 1, "blackrose", 9) == 0) { 
         ret = pread(fd, buf, size, offset);
     }
-    // ...
 }
 
 static int maimai_write(const char *path, const char *buf, size_t size,
                          off_t offset, struct fuse_file_info *fi) {
-    // ...
-    if (strncmp(path_relatif + 1, "blackrose", 9) == 0) { // Cek jika path dimulai dengan "/blackrose"
-        // Tidak ada enkripsi/transformasi. Langsung tulis ke file asli.
+    if (strncmp(path_relatif + 1, "blackrose", 9) == 0) { 
         ret = pwrite(fd, buf, size, offset);
     }
-    // ...
 }
-
-// Catatan: Karena tidak ada perlakuan khusus, operasi untuk Black Rose Chiho
-// sebagian besar akan masuk ke blok `else` pada pengecekan `strncmp` atau
-// tidak memiliki pengecekan khusus sama sekali, yang berarti mereka menggunakan
-// perilaku default yaitu langsung mengakses file asli.
 ```
+
+- `maimai_read(const char *path, char *buf, size_t size, off_t offset, ...)`
+  - Jika path yang diakses dimulai dengan `/blackrose`.
+  - Tidak ada pemanggilan fungsi enkripsi/transformasi. Data dibaca langsung dari file fisik ke `buf` menggunakan `pread()`. Ini mencerminkan sifat "biner murni" area ini.
+- `maimai_write(const char *path, const char *buf, size_t size, off_t offset, ...)`
+  - Jika path yang dituju dimulai dengan `/blackrose`.
+  - Tidak ada pemanggilan fungsi enkripsi/transformasi. Data ditulis langsung dari buf ke file fisik menggunakan `pwrite()`.
+
 
 ## e. Tenkai Area - Heaven Chiho
 
 ```
-// Kunci AES (global)
 static const unsigned char kunci_aes[32] = "maimai_heaven_chiho_key_12345678";
 
-// Fungsi enkripsi AES
 int aes_encrypt(const unsigned char *plaintext, int plaintext_len,
                 const unsigned char *key, const unsigned char *iv,
                 unsigned char *ciphertext) {
@@ -937,7 +939,6 @@ int aes_encrypt(const unsigned char *plaintext, int plaintext_len,
     return ciphertext_len;
 }
 
-// Fungsi dekripsi AES
 int aes_decrypt(const unsigned char *ciphertext, int ciphertext_len,
                 const unsigned char *key, const unsigned char *iv,
                 unsigned char *plaintext) {
@@ -956,32 +957,28 @@ int aes_decrypt(const unsigned char *ciphertext, int ciphertext_len,
     return plaintext_len;
 }
 
-// ...
 
 static int maimai_read(const char *path, char *buf, size_t size, off_t offset,
                         struct fuse_file_info *fi) {
-    // ...
-    if (strncmp(path_relatif + 1, "heaven", 6) == 0) { // Cek jika path dimulai dengan "/heaven"
-        // Baca seluruh isi file yang terenkripsi terlebih dahulu
+    if (strncmp(path_relatif + 1, "heaven", 6) == 0) { 
         long file_size;
         fstat(fd, &st);
         file_size = st.st_size;
 
-        if (file_size < AES_BLOCK_SIZE) { // Jika ukuran file terlalu kecil untuk IV
-            // Handle error, mungkin file kosong atau rusak
+        if (file_size < AES_BLOCK_SIZE) { 
             return -EIO;
         }
 
         unsigned char iv_from_file[AES_BLOCK_SIZE];
-        pread(fd, iv_from_file, AES_BLOCK_SIZE, 0); // Baca IV dari awal file
+        pread(fd, iv_from_file, AES_BLOCK_SIZE, 0);
 
         long encrypted_data_size = file_size - AES_BLOCK_SIZE;
         unsigned char *encrypted_data = malloc(encrypted_data_size);
         if (encrypted_data == NULL) return -ENOMEM;
 
-        pread(fd, encrypted_data, encrypted_data_size, AES_BLOCK_SIZE); // Baca data terenkripsi setelah IV
+        pread(fd, encrypted_data, encrypted_data_size, AES_BLOCK_SIZE); 
 
-        unsigned char *decrypted_data = malloc(encrypted_data_size + AES_BLOCK_SIZE); // Ukuran lebih besar untuk padding
+        unsigned char *decrypted_data = malloc(encrypted_data_size + AES_BLOCK_SIZE); 
         if (decrypted_data == NULL) {
             free(encrypted_data);
             return -ENOMEM;
@@ -1005,30 +1002,21 @@ static int maimai_read(const char *path, char *buf, size_t size, off_t offset,
             memcpy(buf, decrypted_data + offset, bytes_to_copy);
             ret = bytes_to_copy;
         } else {
-            ret = 0; // Offset di luar data terdekripsi
+            ret = 0; 
         }
 
         free(encrypted_data);
         free(decrypted_data);
     }
-    // ...
 }
 
 static int maimai_write(const char *path, const char *buf, size_t size,
                          off_t offset, struct fuse_file_info *fi) {
-    // ...
-    if (strncmp(path_relatif + 1, "heaven", 6) == 0) { // Cek jika path dimulai dengan "/heaven"
-        // Untuk write ke file terenkripsi, kita perlu:
-        // 1. Baca seluruh isi file, dekripsi.
-        // 2. Modifikasi bagian yang diminta (buf, size, offset).
-        // 3. Enkripsi ulang seluruh konten, tulis kembali.
-
-        // Jika file baru atau offset 0 dan belum ada data, buat IV baru
+    if (strncmp(path_relatif + 1, "heaven", 6) == 0) { 
         unsigned char iv_baru[AES_BLOCK_SIZE];
         if (offset == 0) {
-            RAND_bytes(iv_baru, AES_BLOCK_SIZE); // Hasilkan IV acak
+            RAND_bytes(iv_baru, AES_BLOCK_SIZE);
         } else {
-            // Jika bukan offset 0, baca IV yang sudah ada
             if (pread(fd, iv_baru, AES_BLOCK_SIZE, 0) != AES_BLOCK_SIZE) {
                  fprintf(stderr, "Gagal membaca IV untuk penulisan AES: %s\n", path);
                  return -EIO;
@@ -1042,9 +1030,9 @@ static int maimai_write(const char *path, const char *buf, size_t size,
         unsigned char *full_decrypted_data = NULL;
         long full_decrypted_len = 0;
 
-        if (file_size > AES_BLOCK_SIZE) { // Jika ada data terenkripsi sebelumnya
+        if (file_size > AES_BLOCK_SIZE) { 
             unsigned char iv_from_file[AES_BLOCK_SIZE];
-            pread(fd, iv_from_file, AES_BLOCK_SIZE, 0); // Baca IV yang ada
+            pread(fd, iv_from_file, AES_BLOCK_SIZE, 0); 
 
             long existing_encrypted_size = file_size - AES_BLOCK_SIZE;
             unsigned char *existing_encrypted_data = malloc(existing_encrypted_size);
@@ -1060,12 +1048,10 @@ static int maimai_write(const char *path, const char *buf, size_t size,
                                               kunci_aes, iv_from_file, full_decrypted_data);
             free(existing_encrypted_data);
         } else {
-            // File kosong atau hanya berisi IV, anggap konten awal kosong
-            full_decrypted_data = NULL; // Akan dialokasikan ulang nanti jika perlu
+            full_decrypted_data = NULL; 
             full_decrypted_len = 0;
         }
 
-        // Tentukan ukuran buffer baru setelah modifikasi
         long new_data_len = offset + size;
         if (full_decrypted_len > new_data_len) {
             new_data_len = full_decrypted_len;
@@ -1077,23 +1063,19 @@ static int maimai_write(const char *path, const char *buf, size_t size,
             return -ENOMEM;
         }
 
-        // Salin data lama (sebelum offset)
         if (offset > 0 && full_decrypted_data && full_decrypted_len > 0) {
             memcpy(temp_data_buffer, full_decrypted_data, (offset < full_decrypted_len ? offset : full_decrypted_len));
         }
 
-        // Salin data baru
         memcpy(temp_data_buffer + offset, buf, size);
 
-        // Salin data lama (setelah offset + size)
         if (offset + size < full_decrypted_len) {
             memcpy(temp_data_buffer + offset + size, full_decrypted_data + offset + size, full_decrypted_len - (offset + size));
         }
 
         if (full_decrypted_data) free(full_decrypted_data);
 
-        // Enkripsi ulang seluruh data
-        unsigned char *encrypted_output = malloc(new_data_len + AES_BLOCK_SIZE); // Cukup besar untuk padding
+        unsigned char *encrypted_output = malloc(new_data_len + AES_BLOCK_SIZE); 
         if (encrypted_output == NULL) {
             free(temp_data_buffer);
             return -ENOMEM;
@@ -1108,34 +1090,51 @@ static int maimai_write(const char *path, const char *buf, size_t size,
             return -EIO;
         }
 
-        // Tulis IV baru dan data terenkripsi ke file
         pwrite(fd, iv_baru, AES_BLOCK_SIZE, 0);
-        ret = pwrite(fd, encrypted_output, encrypted_len, AES_BLOCK_SIZE); // Mulai setelah IV
+        ret = pwrite(fd, encrypted_output, encrypted_len, AES_BLOCK_SIZE); 
 
-        // Potong file jika ukuran baru lebih kecil
         ftruncate(fd, AES_BLOCK_SIZE + encrypted_len);
 
         free(encrypted_output);
     }
-    // ...
 }
 ```
+- `static const unsigned char kunci_aes[32]`
+  - Mendefinisikan kunci `AES 256-bit` yang digunakan untuk enkripsi dan dekripsi. Kunci ini statis dan global.
+- `int aes_encrypt(...) dan int aes_decrypt(...)`
+  - Ini adalah fungsi pembantu yang membungkus `API OpenSSL` untuk enkripsi dan dekripsi `AES-256-CBC`.
+  - Mereka mengelola inisialisasi konteks (`EVP_CIPHER_CTX_new`), operasi enkripsi/dekripsi (`EVP_EncryptUpdate/EVP_DecryptUpdate`), finalisasi (`EVP_EncryptFinal_ex/EVP_DecryptFinal_ex`), dan pembersihan konteks.
+- `maimai_read(const char *path, char *buf, size_t size, off_t offset, ...)`
+  - Jika path yang diakses dimulai dengan `/heaven`.
+  - Membaca IV: 16 byte pertama dari file fisik dibaca sebagai IV (`iv_from_file`). Ini adalah cara IV disimpan.
+  - Sisa file fisik dibaca sebagai data terenkripsi (`encrypted_data`).
+  - Fungsi `aes_decrypt` dipanggil dengan `encrypted_data`, `kunci_aes`, dan `iv_from_file` untuk mendekripsi data.
+  - Salin ke Buffer FUSE: Bagian dari data yang sudah didekripsi yang diminta oleh offset dan `size` disalin ke `buf` (buffer output FUSE).
+- `maimai_write(const char *path, const char *buf, size_t size, off_t offset, ...)`
+  - Jika path yang dituju dimulai dengan `/heaven`.
+  - Jika `offset == 0` (menulis dari awal file atau membuat file baru), IV baru (`iv_baru`) dihasilkan secara acak menggunakan `RAND_bytes()`.
+  - Jika `offset > 0` (memodifikasi file yang sudah ada), IV yang sudah ada dibaca dari 16 byte pertama file fisik.
+  - Seluruh konten file yang sudah ada (setelah IV) dibaca dan didekripsi untuk mendapatkan versi plaintext lengkapnya (`full_decrypted_data`). Ini perlu karena AES-CBC beroperasi pada blok data, dan modifikasi sebagian memerlukan dekripsi dan enkripsi ulang seluruhnya.
+  - Data yang baru dari `buf` disisipkan ke `full_decrypted_data` pada `offset` yang diminta, sehingga menciptakan `temp_data_buffer` yang berisi konten `plaintext` yang diperbarui.
+  - Seluruh `temp_data_buffer` dienkripsi ulang menggunakan `aes_encrypt` dengan IV yang relevan.
+  - IV yang digunakan dan data terenkripsi yang baru ditulis kembali ke file fisik. IV ditulis di awal, diikuti oleh data terenkripsi.
+  - `ftruncate` digunakn untuk memotong file fisik atau memperpanjang agar sesuai dengan ukuran data terenkripsi yang baru, termasuk IV.
+
 
 ## f. Youth Area - Skystreet Chiho
 
 ```
-// Fungsi kompresi gzip
 int gzip_compress(const char *in_buf, size_t in_len, char **out_buf, size_t *out_len) {
     z_stream strm;
     int ret;
-    const int CHUNK = 16384; // Ukuran chunk untuk zlib
+    const int CHUNK = 16384; 
     char temp_out[CHUNK];
     int total_out = 0;
 
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
-    ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 + 16, 8, Z_DEFAULT_STRATEGY); // 15+16 untuk gzip header
+    ret = deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 15 + 16, 8, Z_DEFAULT_STRATEGY); 
     if (ret != Z_OK) return ret;
 
     strm.avail_in = in_len;
@@ -1147,7 +1146,7 @@ int gzip_compress(const char *in_buf, size_t in_len, char **out_buf, size_t *out
     do {
         strm.avail_out = CHUNK;
         strm.next_out = (Bytef*)temp_out;
-        ret = deflate(&strm, Z_FINISH); // Gunakan Z_FINISH untuk menyelesaikan kompresi
+        ret = deflate(&strm, Z_FINISH); 
         if (ret == Z_STREAM_ERROR) {
             deflateEnd(&strm);
             return ret;
@@ -1167,7 +1166,6 @@ int gzip_compress(const char *in_buf, size_t in_len, char **out_buf, size_t *out
     return Z_OK;
 }
 
-// Fungsi dekompresi gzip
 int gzip_decompress(const char *in_buf, size_t in_len, char **out_buf, size_t *out_len) {
     z_stream strm;
     int ret;
@@ -1178,7 +1176,7 @@ int gzip_decompress(const char *in_buf, size_t in_len, char **out_buf, size_t *o
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
-    ret = inflateInit2(&strm, 15 + 32); // 15+32 untuk mendeteksi zlib atau gzip header
+    ret = inflateInit2(&strm, 15 + 32);
     if (ret != Z_OK) return ret;
 
     strm.avail_in = in_len;
@@ -1210,13 +1208,9 @@ int gzip_decompress(const char *in_buf, size_t in_len, char **out_buf, size_t *o
     return Z_OK;
 }
 
-// ...
-
 static int maimai_read(const char *path, char *buf, size_t size, off_t offset,
                         struct fuse_file_info *fi) {
-    // ...
-    if (strncmp(path_relatif + 1, "youth", 5) == 0) { // Cek jika path dimulai dengan "/youth"
-        // Baca seluruh isi file terkompresi
+    if (strncmp(path_relatif + 1, "youth", 5) == 0) { 
         long file_size;
         fstat(fd, &st);
         file_size = st.st_size;
@@ -1237,7 +1231,6 @@ static int maimai_read(const char *path, char *buf, size_t size, off_t offset,
             return -EIO;
         }
 
-        // Salin bagian yang diminta oleh FUSE
         if (offset < decompressed_len) {
             size_t bytes_to_copy = size;
             if (offset + size > decompressed_len) {
@@ -1250,18 +1243,11 @@ static int maimai_read(const char *path, char *buf, size_t size, off_t offset,
         }
         free(decompressed_data);
     }
-    // ...
 }
 
 static int maimai_write(const char *path, const char *buf, size_t size,
                          off_t offset, struct fuse_file_info *fi) {
-    // ...
-    if (strncmp(path_relatif + 1, "youth", 5) == 0) { // Cek jika path dimulai dengan "/youth"
-        // Untuk write ke file terkompresi, kita perlu:
-        // 1. Baca seluruh isi file, dekompresi.
-        // 2. Modifikasi bagian yang diminta (buf, size, offset).
-        // 3. Kompresi ulang seluruh konten, tulis kembali.
-
+    if (strncmp(path_relatif + 1, "youth", 5) == 0) { 
         long file_size;
         fstat(fd, &st);
         file_size = st.st_size;
@@ -1282,7 +1268,6 @@ static int maimai_write(const char *path, const char *buf, size_t size,
             }
         }
 
-        // Tentukan ukuran buffer baru setelah modifikasi
         size_t new_data_len = offset + size;
         if (full_decompressed_len > new_data_len) {
             new_data_len = full_decompressed_len;
@@ -1294,22 +1279,18 @@ static int maimai_write(const char *path, const char *buf, size_t size,
             return -ENOMEM;
         }
 
-        // Salin data lama (sebelum offset)
         if (offset > 0 && full_decompressed_data && full_decompressed_len > 0) {
             memcpy(temp_data_buffer, full_decompressed_data, (offset < full_decompressed_len ? offset : full_decompressed_len));
         }
 
-        // Salin data baru
         memcpy(temp_data_buffer + offset, buf, size);
 
-        // Salin data lama (setelah offset + size)
         if (offset + size < full_decompressed_len) {
             memcpy(temp_data_buffer + offset + size, full_decompressed_data + offset + size, full_decompressed_len - (offset + size));
         }
 
         if (full_decompressed_data) free(full_decompressed_data);
 
-        // Kompresi ulang seluruh data
         char *compressed_output = NULL;
         size_t compressed_len = 0;
         int z_ret = gzip_compress(temp_data_buffer, new_data_len, &compressed_output, &compressed_len);
@@ -1321,28 +1302,39 @@ static int maimai_write(const char *path, const char *buf, size_t size,
             return -EIO;
         }
 
-        // Tulis data terkompresi ke file
         ret = pwrite(fd, compressed_output, compressed_len, 0);
         ftruncate(fd, compressed_len); // Potong file ke ukuran baru
 
         free(compressed_output);
     }
-    // ...
 }
 ```
+
+- `int gzip_compress(...)` dan `int gzip_decompress(...)`
+  - Ini adalah fungsi pembantu yang membungkus API `zlib` untuk kompresi dan dekompresi data menggunakan format `gzip`.
+  - Mereka mengelola inisialisasi (`deflateInit2/inflateInit2`), pemrosesan data (`deflate/inflate`), dan finalisasi (`deflateEnd/inflateEnd`).
+  - `15 + 16` pada `deflateInit2` dan `15 + 32` pada `inflateInit2` adalah parameter untuk memberitahu `zlib` agar menggunakan format `gzip`.
+- `maimai_read(const char *path, char *buf, size_t size, off_t offset, ...)`
+  - Jika path yang diakses dimulai dengan `/youth`.
+  - Membaca Data Terkompresi: Seluruh konten file fisik dibaca ke dalam `compressed_data`.
+  - Dekompresi: Fungsi `gzip_decompress` dipanggil untuk mendekompresi `compressed_data` menjadi `decompressed_data`.
+  - Salin ke Buffer FUSE: Bagian dari data yang sudah didekompresi yang diminta oleh `offset` dan `size` disalin ke `buf` (buffer output FUSE).
+- `maimai_write(const char *path, const char *buf, size_t size, off_t offset, ...)`
+  - Jika path yang dituju dimulai dengan `/youth`.
+  - Baca & Dekompresi Data Lama: Jika file sudah ada dan memiliki konten, seluruh konten terkompresi yang ada dibaca dan didekompresi untuk mendapatkan versi `plaintext` lengkapnya (`full_decompressed_data`). Ini diperlukan karena kompresi `gzip` beroperasi pada seluruh data, dan modifikasi sebagian memerlukan dekompresi dan kompresi ulang seluruhnya.
+  - Modifikasi Data: Data yang baru dari buf disisipkan ke `full_decompressed_data` pada `offset` yang diminta, menciptakan `temp_data_buffer` yang berisi konten `plaintext` yang diperbarui.
+  - Kompresi Ulang: Seluruh `temp_data_buffer` dikompresi ulang menggunakan `gzip_compress`.
+  - Tulis Data Terkompresi: Data terkompresi yang baru ditulis kembali ke file fisik.
+  - `ftruncate` Ukuran file fisik dipotong atau diperpanjang agar sesuai dengan ukuran data terkompresi yang baru.
+
+
 
 ## g. Prism Area - 7sRef Chiho
 
 ```
 static int get_real_path_chiho(char *full_path, const char *path) {
-    // Fungsi utilitas untuk mendapatkan path asli di direktori sumber
-    // Fungsi ini dimodifikasi untuk menangani 7sref.
-    // Jika path adalah /7sref/[area]_[nama_file], ubah menjadi /[area]/[nama_file]
-    // sebelum mem-prefix dengan direktori_sumber_chiho.
-
-    // Cek jika path dimulai dengan "/7sref/"
     if (strncmp(path, "/7sref/", 7) == 0) {
-        const char *filename_in_7sref = path + 7; // Ambil bagian setelah "/7sref/"
+        const char *filename_in_7sref = path + 7;
         char *underscore_pos = strchr(filename_in_7sref, '_');
 
         if (underscore_pos) {
@@ -1353,26 +1345,19 @@ static int get_real_path_chiho(char *full_path, const char *path) {
 
             const char *original_filename = underscore_pos + 1;
 
-            // Bangun path virtual yang sesuai dengan area lain
-            // Misalnya, "/starter/guide.txt"
             char virtual_path_from_7sref[1024];
             sprintf(virtual_path_from_7sref, "/%s/%s", area_name, original_filename);
 
-            // Kemudian panggil get_real_path_chiho lagi dengan virtual_path_from_7sref
-            // Ini akan memanggil dirinya sendiri secara rekursif tapi untuk path yang sudah "diterjemahkan"
-            // (kecuali jika ada penanganan khusus lebih lanjut di area lain, yang sudah diimplementasikan)
             sprintf(full_path, "%s%s", direktori_sumber_chiho, virtual_path_from_7sref);
             return 0;
         }
     }
-    // Untuk path selain 7sref atau yang tidak sesuai format 7sref, gunakan perilaku default
     sprintf(full_path, "%s%s", direktori_sumber_chiho, path);
     return 0;
 }
 
 static int maimai_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                            off_t offset, struct fuse_file_info *fi) {
-    // ...
     if (strcmp(path_relatif, "/7sref") == 0) {
         const char *areas[] = {"starter", "metro", "dragon", "blackrose", "heaven", "youth"};
         for (size_t i = 0; i < sizeof(areas) / sizeof(areas[0]); ++i) {
@@ -1387,13 +1372,12 @@ static int maimai_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                 if (strcmp(dp_file->d_name, ".") == 0 || strcmp(dp_file->d_name, "..") == 0) continue;
 
                 char filename_in_7sref[1024];
-                // Bentuk nama file di 7sref: [area]_[nama_file_asli]
                 sprintf(filename_in_7sref, "%s_%s", areas[i], dp_file->d_name);
 
                 struct stat st;
                 memset(&st, 0, sizeof(st));
                 st.st_ino = dp_file->d_ino;
-                st.st_mode = dp_file->d_type << 12; // Dapatkan tipe file
+                st.st_mode = dp_file->d_type << 12; 
 
                 if (filler(buf, filename_in_7sref, &st, 0)) {
                     closedir(dp_area);
@@ -1403,16 +1387,21 @@ static int maimai_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
             closedir(dp_area);
         }
     } else {
-        // ... (kode readdir untuk direktori lain)
     }
-    // ...
 }
-
-// Catatan: Fungsi open, read, write, create, unlink, mkdir, dll.
-// secara otomatis akan mendapatkan path asli yang benar melalui modifikasi
-// `get_real_path_chiho` ketika mereka dipanggil dengan path yang berasal dari `/7sref/`.
-// Jadi, tidak perlu ada blok `if (strncmp(path_relatif + 1, "7sref", ...)` tambahan di fungsi-fungsi tersebut
-// kecuali untuk `readdir` yang perlu menampilkan daftar file yang "diterjemahkan".
 ```
+
+- `get_real_path_chiho(char *full_path, const char *path)`:
+  - Fungsi utilitas ini dimodifikasi secara signifikan untuk `7sref`.
+  - Deteksi `7sref`: Jika path FUSE dimulai dengan `/7sref/`.
+  - Ekstraksi Nama Area dan File: `strchr(filename_in_7sref, '_')` digunakan untuk menemukan underscore pertama. Bagian sebelum underscore diambil sebagai nama area (misalnya "starter"), dan bagian setelah underscore diambil sebagai nama file asli (misalnya "guide.txt").
+  - Pembentukan Virtual Path: Sebuah virtual path baru (`/area/filename`) dibuat (misalnya /starter/guide.txt).
+  - Rekursi (implisit): Meskipun tidak secara eksplisit rekursif dalam panggilan fungsi, dengan mengubah path FUSE yang masuk menjadi `virtual_path_from_7sref`, fungsi `get_real_path_chiho` yang sama akan menghasilkan path fisik yang benar ke direktori area yang dituju. Ini memungkinkan semua operasi FUSE (baca, tulis, atribut, dll.) untuk file yang diakses melalui `7sref` secara otomatis diarahkan ke penanganan area yang sesuai.
+- `maimai_readdir(const char *path, void *buf, fuse_fill_dir_t filler, ...)`
+  - Jika direktori yang dibaca adalah `/7sref`.
+  - Iterasi Melalui Semua Area: Fungsi ini tidak membaca direktori fisik `/home/deefen/sisopmodul4/soalno4/chiho/7sref`. Sebaliknya, ia secara programatis mengiterasi melalui semua direktori area lainnya yang telah ditentukan di `areas[]`.
+  - Pembacaan File di Setiap Area: Untuk setiap area, ia membuka direktori fisik area tersebut (misalnya `/home/deefen/sisopmodul4/soalno4/chiho/starter`).
+  - Pembentukan Nama File `7sref`: Untuk setiap file yang ditemukan di direktori area tersebut, namanya digabungkan dengan nama area dan sebuah underscore (misalnya `starter_guide.txt`).
+  - Pengisian filler: Nama file yang sudah dibentuk dalam format `7sref ([area]_[nama_file])` kemudian ditambahkan ke buffer FUSE menggunakan filler(), bersama dengan atributnya. Ini membuat file-file dari area lain muncul di direktori `/7sref` dengan nama yang diubah.
 
 
