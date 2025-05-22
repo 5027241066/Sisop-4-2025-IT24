@@ -30,13 +30,8 @@
 
  
 ### Soal 3
-- [a. ](#a-)
-- [b.](#b-)
-- [c.](#c-)
-- [d.](#d-)
-- [e. ](#e-)
-
- 
+- [a. Menjalankan sistem AntiNK menggunakan Docker dan FUSE](#a-Menjalankan-sistem-AntiNK-menggunakan-Docker-dan-FUSE).
+                                                                                                                                                                                                                                                                                                                                             
 ### Soal 4
 - [a. Starter Area - Starter Chiho](#a-starter-area---starter-chiho)
 - [b. World's End Area - Metropolis Chiho](#b-worlds-end-area---metropolis-chiho)
@@ -642,7 +637,160 @@ int main(int argc, char *argv[]) {
   - `return fuse_main(argc, argv, &operasi, NULL);` akan memulai loop utama FUSE. `fuse_main` adalah fungsi yang disediakan oleh pustaka FUSE yang mengambil alih eksekusi program dan memproses operasi filesystem (seperti `read`, `write`, `getattr`, dll.) yang diminta oleh sistem operasi. operasi adalah struct yang berisi pointer ke fungsi-fungsi yang kita definisikan ( `fs_getattr`, `fs_read`, dll.).
 
 
-# Soal 3
+# Soal 3 
+AntiNK Membuat sistem pendeteksi kenakalan bernama **Anti Napis Kimcun (AntiNK)**, yang melindungi file-file penting milik angkatan 24 dari dua mahasiswa berbahaya, yaitu Nafis dan Kimcun.
+
+Sistem ini harus dijalankan dalam container Docker, dengan filesystem virtual berbasis **FUSE**, dan terdiri dari dua container utama:
+- `antink-server` → menjalankan program FUSE (antink)
+- `antink-logger` → memantau aktivitas log real-time
+
+---
+
+## Direktori
+
+```bash
+MODUL4/
+├── antink.c
+├── Dockerfile
+├── docker-compose.yml
+├── it24_host/        # Direktori file asli
+├── antink_mount/     # Mount point hasil FUSE
+└── antink-logs/      # Folder untuk log (bind mount ke /var/log)
+```
+
+---
+## `Dockerfile`
+
+```dockerfile
+FROM ubuntu:22.04
+
+RUN apt update && apt install -y fuse libfuse-dev gcc
+
+COPY antink.c /antink.c
+
+RUN gcc -o /antink /antink.c -D_FILE_OFFSET_BITS=64 -lfuse
+
+RUN mkdir -p /antink_mount
+
+CMD ["/antink", "-f", "/antink_mount"]
+```
+
+### Penjelasan:
+- **Base Image:** Ubuntu 22.04
+- **Install Dependencies:** FUSE + compiler
+- **COPY & Compile:** File `antink.c` dikompilasi menjadi `/antink`
+- **CMD:** Saat container dijalankan, program `antink` akan langsung mount filesystem ke `/antink_mount`
+
+---
+
+## `docker-compose.yml`
+
+```yaml
+version: '3.8'
+services:
+  antink-server:
+    build: .
+    container_name: antink-server
+    devices:
+      - /dev/fuse
+    cap_add:
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - ./it24_host:/it24_host
+      - ./antink_mount:/antink_mount
+      - ./antink-logs:/var/log
+    command: ./antink -f /antink_mount
+
+  antink-logger:
+    image: busybox
+    container_name: antink-logger
+    volumes:
+      - ./antink-logs:/var/log
+    command: tail -f /var/log/it24.log
+```
+
+### Penjelasan:
+- Container `antink-server` menjalankan FUSE secara isolasi
+- Container `antink-logger` memantau file log `/var/log/it24.log`
+- Mount volume digunakan agar host dan container bisa berbagi direktori
+
+---
+
+## `antink.c`
+
+### Fungsi Utama:
+- `reverse_str()`: membalik string (nama file)
+- `rot13()`: mengenkripsi isi file dengan ROT13
+- `log_action()`: mencatat aktivitas ke `/var/log/it24.log`
+
+### FUSE Operations:
+- `getattr`: memberi info dasar file
+- `readdir`: membaca isi direktori `/it24_host`, dan membalik nama file jika mengandung "nafis" atau "kimcun"
+- `read`: membaca isi file dari `/it24_host`, mengenkripsi jika bukan file berbahaya
+
+---
+
+## a. Menjalankan sistem AntiNK menggunakan Docker dan FUSE
+
+### Perintah-perintah yang Dijalankan:
+
+```bash
+# Masuk direktori project
+cd ~/Documents/MODUL4
+
+# Jalankan sistem secara background
+docker-compose up -d --build
+
+# Cek container berjalan
+docker ps
+
+# Masuk ke container antink-server
+docker exec -it antink-server bash
+
+# Jalankan program FUSE
+./antink -f /antink_mount
+```
+
+---
+
+### Input Uji host:
+
+```bash
+echo "ini file biasa" > it24_host/test.txt
+echo "kimcun detected" > it24_host/kimcun.txt
+echo "nafis detected" > it24_host/nafis.csv
+```
+
+---
+
+### Output (Dari mount):
+
+```bash
+# Cek isi mount
+docker exec antink-server ls /antink_mount
+
+# Output:
+test.txt
+vsc.sifan
+txt.nucmik
+```
+
+---
+
+###  Log Aktivitas:
+
+```bash
+docker exec antink-logger tail /var/log/it24.log
+
+# Output:
+[2025-05-21 21:00:00] [ALERT] kimcun.txt
+[2025-05-21 21:00:01] [ALERT] nafis.csv
+[2025-05-21 21:00:02] [ENCRYPTED] /test.txt
+```
+
+---
 
 # Soal 4
 
