@@ -236,6 +236,12 @@ if (log) {
 `struct tm *tm_info = localtime(&t);` Digunakan untuk mengambil tanggal dan waktu pada saat conversion dijalankan. Code `strftime(log_timestamp, sizeof(log_timestamp), "%Y-%m-%d", tm_info);` dan `strftime(log_time, sizeof(log_time), "%H:%M:%S", tm_info);` digunakan untuk membentuk format yang diperlukan yaitu [YYYY-MM-DD] untuk tanggal dan [HH:MM:SS] untuk waktu. `FILE *log = fopen(LOG_FILE, "a");` Berfungsi untuk membuka log file yang kemudian akan dituliskan sesuai format "[YYYY-MM-DD][HH:MM:SS]: Successfully converted hexadecimal text [nama file string] to [nama file image]." jika file hex berhasil di convert menjadi `.png`. Setelah itu file log akan ditutup dengan `fclose(log);` agar isinya tersimpan. 
 
 # Soal 2
+
+Tree Directory :
+
+
+![tree baymax](assets/tree_baymax.png)
+
 ## a. Membuat Sistem FUSE untuk Merepresentasikan Gambar
 
 ```
@@ -639,6 +645,12 @@ int main(int argc, char *argv[]) {
 # Soal 3
 
 # Soal 4
+
+Tree Directory :
+
+
+![tree_maimai_fs](assets/tree_maimai_fs.png)
+
 ## a. Starter Area - Starter Chiho
 
 ```
