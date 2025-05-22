@@ -16,7 +16,7 @@
 - [a. Download Unzip](#a-download-unzip)
 - [b. Convert dari hexadecimal menjadi image](#b-convert-dari-hexadecimal-menjadi-image)
 - [c. File Name](#c-file-name)
-- [d. Conversion.log]()
+- [d. Conversion.log](#d-conversionlog)
 
   
 ### Soal 2
