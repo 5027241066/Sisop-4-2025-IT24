@@ -98,7 +98,7 @@ void download_zip() {
 ```
 Fungsi download menggunakan `curl`. Saat proses berjalan, akan ditampilkan pesan "Downloading zip file...". Setelah file berhasil didownload, kode akan mengekstrak file tersebut dan menampilkan pesan "Files extracted successfully to anomali/".
 
-Code `%s` merujuk pada `BASE_DIR`, yaitu folder anomali. Jika proses ekstrak gagal, maka akan muncul pesan "Unzip failed". Apabila ekstraksi berhasil, file ZIP akan dihapus secara otomatis menggunakan `remove(ZIP_NAME)`.
+Code `%s` merujuk pada `BASE_DIR`, yaitu folder anomali. Jika proses ekstrak gagal, maka akan muncul pesan "Unzip failed". Apabila ekstrak berhasil, file ZIP akan dihapus secara otomatis menggunakan `remove(ZIP_NAME)`.
 
 ## b. Convert dari hexadecimal menjadi image
 ```
